@@ -1,4 +1,9 @@
-# IASC TP
+# UTN - Facultad Regional Buenos Aires
+# Implementación de Arquitecturas Concurrentes - Trabajo Práctico
+
+## Profesores
+- Ernesto Bossi
+- Sofía Audisio
 
 ## Link a diagramas
 - URL a Diagrams.io / Excallibur Image
