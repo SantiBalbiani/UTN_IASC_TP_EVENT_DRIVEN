@@ -1,16 +1,19 @@
-# UTN - Facultad Regional Buenos Aires
 # Implementación de Arquitecturas Concurrentes - Trabajo Práctico
+#### UTN - Facultad Regional Buenos Aires
 
-## Profesores
+### Alumno
+- Santiago Balbiani
+
+### Profesores
 - Ernesto Bossi
 - Sofía Audisio
 
-## Link a diagramas
+### Link a diagramas
 - URL a Diagrams.io / Excallibur Image
 
-## Cómo Ejecutar el proyecto
+### Cómo Ejecutar el proyecto
 
-### 1° Docker-compose
+#### 1° Docker-compose
 ```
 docker-compose up --scale vuelos=1 --build
 ```
