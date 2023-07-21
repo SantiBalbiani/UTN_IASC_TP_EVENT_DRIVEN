@@ -1,0 +1,59 @@
+version: '2.4'
+
+services:
+
+  rabbitmq:
+    image: rabbitmq:3.9.13-management-alpine
+    container_name: 'rabbitmq'
+    restart: always
+    environment:
+      - "RABBITMQ_DEFAULT_USER=utn"
+      - "RABBITMQ_DEFAULT_PASS=iasc"
+    ports:
+      # AMQP protocol port
+      - 5672:5672
+      # HTTP management UI
+      - 15672:15672
+
+  aerolineas:
+      build:
+        context: ./aerolineas
+        args:
+          - NODE_ENV=development
+      ports:
+        - 3005:3005
+      environment:
+      #TODO
+        - SERVICE=aerolineas
+      env_file:
+      #TODO
+        - ./aerolineas/.env
+      depends_on:
+        - rabbitmq
+      restart: always
+
+  vuelos:
+    build:
+      context: ./vuelos
+      args:
+        - NODE_ENV=development
+    ports:
+      - 3002:3002
+    environment:
+      - SERVICE=vuelos
+    env_file:
+      - ./vuelos/.env
+    depends_on:
+      - rabbitmq
+    restart: always
+
+  proxy:
+    restart: 'always'
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile  
+    ports:
+      - 80:80
+    depends_on:
+      - vuelos
+      - aerolineas
