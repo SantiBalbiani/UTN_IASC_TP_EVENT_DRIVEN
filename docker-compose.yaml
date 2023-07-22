@@ -2,6 +2,25 @@ version: '2.4'
 
 services:
 
+  statebusrabbitmq:
+      build:
+        context: ./statebusrabbitmq
+        args:
+          - NODE_ENV=development
+      ports:
+        # AMQP protocol port
+        # - 5673:5673
+        # HTTP management UI
+        - 15673:15673
+      environment:
+        - SERVICE=statebusrabbitmq
+      env_file:
+        - ./statebusrabbitmq/.env
+      restart: always
+      depends_on:
+        - rabbitmq
+
+
   rabbitmq:
     image: rabbitmq:3.9.13-management-alpine
     container_name: 'rabbitmq'
@@ -26,7 +45,6 @@ services:
       #TODO
         - SERVICE=aerolineas
       env_file:
-      #TODO
         - ./aerolineas/.env
       depends_on:
         - rabbitmq

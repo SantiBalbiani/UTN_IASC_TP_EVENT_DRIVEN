@@ -18,6 +18,8 @@ if (cluster.isPrimary) {
   for (let i = 0; i < os.cpus().length; i++) {
     let newWorker = cluster.fork();
     workers.push(newWorker);
+    newWorker.PostMessage('connectToQueue');
+    newWorker.PostMessage('getInitialState');
   }
 
   // catching exit signal
@@ -25,6 +27,18 @@ if (cluster.isPrimary) {
     console.log(`Worker ${workerData.worker.process.pid} exited with code ${workerData.code} and signal ${workerData.signal}.`);
     cluster.fork();
   });
+
+/*   cluster.on('message', (message:any) => {
+    switch (message){
+      case 'connectToQueue':
+        break;
+      case 'getInitialState':
+        break;
+      default: 
+        break;
+    }
+  }); */
+
 } else {
   console.log(`Worker with PID: ${process.pid} is running.`);
 
