@@ -1,15 +1,23 @@
-# IASC TP
+# Implementación de Arquitecturas Concurrentes - Trabajo Práctico
+#### UTN - Facultad Regional Buenos Aires
 
-## Link a diagramas
-- Aca url a diagramas nuestros
+### Alumno
+- Santiago Balbiani
 
-## Primer setup
+### Profesores
+- Ernesto Bossi
+- Sofía Audisio
 
+### Link a diagramas
+- URL a Diagrams.io / Excallibur Image
+
+### Cómo Ejecutar el proyecto
+
+#### 1° Docker-compose
 ```
 docker-compose up --scale vuelos=1 --build
 ```
-
-## Luego se corre con
+### 2° Ingresar a la URL:
 ```
-docker-compose up
+XXXXXXXXX
 ```
