@@ -1,136 +1,133 @@
-import express, { Express, Request, Response } from 'express';
+import os from 'os';
+import express from 'express';
+import httpProxy from 'http-proxy';
+import cluster from 'cluster';
+import {Worker} from 'cluster';
 import { createMessage, createFlightOffer } from './services/controller';
 
-//const app = express();
-const port = 3005;
+const numCPUs = os.cpus().length;
+const workers: Worker[] = [];
+let workersPorts: { workerPID: number; port: number }[] = [];
+let previousPort = 3002;
 
-
-//=========================================================================================================
-import { Worker } from 'cluster';
-const cluster = require('cluster');
-const os = require('os');
-const http = require('http');
-const httpProxy = require('http-proxy');
-
-interface workerStructure {
-    worker: any,
-    code: any,
-    signal: any
+interface MessageWorker {
+  type: string;
+  data: string[];
 }
 
-var workers: Array<Worker> = []
+function getNextPortRR(port_from_server: string){
+  const workersOnlyPorts = workersPorts.map(value => value.port);
+  //let index = workersOnlyPorts.indexOf(parseInt(process.env.PORT));
+  //Con la línea de abajo andaba
+  //let index = workersOnlyPorts.indexOf(previousPort);
+  let index = workersOnlyPorts.indexOf(parseInt(port_from_server));
+  console.log(parseInt(port_from_server));
+  console.log(workersOnlyPorts);
+  console.log('indice determinado:');
+  console.log(index);
 
-      // Proxy server
-      const proxy = httpProxy.createProxyServer({});
+  let nextPort = (index === workersOnlyPorts.length - 1) ? 3000 : workersOnlyPorts[index + 1];
+  console.log('puerto determinado');
+  console.log(nextPort);
 
-      const servers = [];
+  return nextPort;
+}
 
-      // Get the number of workers in the cluster:
-      //let numberOfWorkers = Object.keys(cluster.workers).length;
-      let numberOfWorkers = workers.length;
-      // Load balancer
-      let workersPath = `http://localhost:${port}`;
-      const balancer = httpProxy.createBalancer({
-        [workersPath]: numberOfWorkers // number of workers
-      });
-    
-      const proxyServer = http.createServer((req: Request, res: Response) => {
-        balancer.proxy(proxy, req, res);
-      });
-    
-      proxyServer.listen(8082, () => {
-        console.log(`Proxy server started on port ${proxyServer.address().port}`);
-      });
+function isWorkerAvailable(pid: number): boolean {
+  try {
+    // Intentamos enviar una señal al proceso del worker con el PID dado
+    // Si el proceso está vivo, esto no generará una excepción y devolverá true
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    // Si el proceso no está vivo, la excepción se captura y devolvemos false
+    return false;
+  }
+}
 
+/* function delay(time: number) {
+  return new Promise(resolve => setTimeout(resolve, time));
+} */
 
 if (cluster.isPrimary) {
-    console.log(`The PPID ${process.pid} is running.`);
+  console.log(`Primary ${process.pid} is running`);
+  const workersData: string[] = [];
+  for (let i = 0; i < numCPUs; i++) {
+    let newWorker = cluster.fork({ PORT: 3000 + i });
+    workers.push(newWorker);
+    workersData.push(JSON.stringify({ workerPID: newWorker.process.pid, port: 3000 + i }));
+  }
 
-    // I create a worker by every CPU to use the full capacity of the instance.
-    for (let i = 0; i < os.cpus().length; i++) {
-        let newWorker = cluster.fork();
-        workers.push(newWorker);
-        //newWorker.PostMessage('connectToQueue');
-        // newWorker.PostMessage('getInitialState');
-    }
+  const message = {
+    type: 'WorkersPorts',
+    data: workersData,
+  };
+  for (const id in cluster.workers) {
+    cluster.workers[id]?.send(message);
+  }
 
-    // catching exit signal
-    cluster.on('exit', (workerData: workerStructure) => {
-        console.log(`Worker ${workerData.worker.process.pid} exited with code ${workerData.code} and signal ${workerData.signal}.`);
-        cluster.fork();
-         // newWorker.PostMessage('getInitialState');
-    });
-
-    /*   cluster.on('message', (message:any) => {
-        switch (message){
-          case 'connectToQueue':
-            break;
-          case 'getInitialState':
-            break;
-          default: 
-            break;
-        }
-      }); */
-
+  cluster.on('exit', (worker, code, signal) => {
+    console.log(`worker ${worker.process.pid} died`);
+    cluster.fork({ PORT: 3000 + workers.length }); // Reemplazar el worker muerto con uno nuevo en el siguiente puerto disponible
+  });
 } else {
+  workersPorts = [];
+  process.on('message', (message:MessageWorker) => {
+    switch (message.type) {
+      case 'WorkersPorts':
+        workersPorts = message.data.map(val => JSON.parse(val));
+        console.log(`Master received result from Worker ${cluster.worker?.process.pid}: ${message.type}`);
+        break;
+      // Agregar más casos según los tipos de mensajes que necesite manejar
+    }
+    // Cuando el worker recibe un mensaje, mostramos el valor recibido
+    // console.log(`Worker ${cluster.worker?.process.pid} received message: ${message}`);
+  });
 
-    const app = express();
+  const app = express();
+  app.get('/', (req, res) => {
+    res.writeHead(200);
+    res.end(`Hello world!\n I am the pid ${process.pid}`);
+  });
 
-    console.log(`Worker with PID: ${process.pid} is running.`);
+  app.get('/tryme', (req, res) => {
+    //delay(200);
+    res.writeHead(200);
+    res.end(`Try me! Hello world!\n I am the pid ${process.pid} listening at port ${process.env.PORT}`);
+  });
 
-    // ... Acá debería agregar la lógica de los workers, tal vez debería desacoplar acá ...
+  app.get('/createflight', (req, res) => {
+    let flightMock = { when: "20230909", price: 43.5, airline: "Aerolineas", origin: "Buenos Aires", destination: "Miami", seats: 23 }
+    createFlightOffer(flightMock);
+    res.send(`Flight Created by ${process.pid}`);
+});
 
-    app.get('/', (req: Request, res: Response) => {
-        res.send('Hello, this is the airlines using Express + TypeScript');
+app.get('/queue', (req, res) => {
+  createMessage()
+  res.send('Queue message created');
+});
+
+  const serverPort: string = process.env.PORT || '3000';
+  const server = app.listen(process.env.PORT, () => {
+    console.log(`Worker ${process.pid} started`);
+
+    const proxy = httpProxy.createProxyServer({});
+    const app2 = express();
+
+    app2.get('/', (req, res) => {
+      const nextPort = getNextPortRR(serverPort);
+      previousPort = nextPort;
+      proxy.web(req, res, { target: `http://localhost:${nextPort}/tryme` });
     });
 
-
-    //Después pasar esto a post. Toy haciendo el mock recién :')
-    app.get('/createflight', (req: Request, res: Response) => {
-        let flightMock = { when: "20230909", price: 43.5, airline: "Aerolineas", origin: "Buenos Aires", destination: "Miami", seats: 23 }
-        createFlightOffer(flightMock);
-        res.send(`Flight Created by ${process.pid}`);
+    app2.get('/createflight', (req, res) => {
+      const nextPort = getNextPortRR(serverPort);
+      previousPort = nextPort;
+      proxy.web(req, res, { target: `http://localhost:${nextPort}/createflight` });
     });
 
-    app.get('/queue', (req: Request, res: Response) => {
-        createMessage()
-        res.send('Queue message created');
+    app2.listen(3015, () => {
+      console.log('La aplicación 2 está escuchando en el puerto 4000');
     });
-
-    
-
-    app.listen(port, () => {
-        console.log(`[Server]: I am running at http://localhost:${port} in the PID ${process.pid}`);
-    });
-
-
-
+  });
 }
-
-
-
-
-
-
-//==========================================================================================================
-
-
-
-
-
-
-
-var airlines_state = [{
-    id: 4343,
-    seats: [{ id: 1, occupied: true }, { id: 2, occupied: false }]
-},
-{
-    id: 4342,
-    seats: [{ id: 1, occupied: true }, { id: 2, occupied: false }]
-},
-{
-    id: 4343,
-    seats: [{ id: 1, occupied: true }, { id: 2, occupied: false }]
-}
-];
-

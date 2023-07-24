@@ -1,0 +1,8 @@
+Para crearla
+
+docker run -p 3015:3015  --name testae4 aerotest5
+
+Para correr la imagen
+
+docker run -p 3000-3015:3000-3015  --name testae3 aerolineastest
+

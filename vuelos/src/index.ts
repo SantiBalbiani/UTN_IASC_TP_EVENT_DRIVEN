@@ -2,7 +2,7 @@ import express, {Express, Request, Response} from 'express';
 import { createMessage } from './services/connect-queue';
 
 const app: Express = express();
-const port = 3002;
+const port = 6000;
 
 app.get('/', (req: Request, res: Response)=>{
     res.send('Hello, this is Express + TypeScript');

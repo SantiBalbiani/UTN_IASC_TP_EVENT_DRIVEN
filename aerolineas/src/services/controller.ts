@@ -38,7 +38,7 @@ export async function createMessage() {
 
 
 async function publishMessage(message: any) {
-    const connection = await ColaMensajes.connect('amqp://localhost');
+    const connection = await client.connect('amqp://localhost');
     const channel = await connection.createChannel();
   
     const exchangeName = 'broadcast_exchange';
