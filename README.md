@@ -9,7 +9,7 @@
 - Sofía Audisio
 
 ### Diagrama
-- ![URL a Diagrams.io / Excallibur Image](https://github.com/SantiBalbiani/UTN_IASC_TP_EVENT_DRIVEN/blob/master/images/container1.PNG?raw=true)
+![URL a Diagrams.io / Excallibur Image](https://github.com/SantiBalbiani/UTN_IASC_TP_EVENT_DRIVEN/blob/master/images/container1.PNG?raw=true)
 
 ### Cómo Ejecutar el proyecto
 
