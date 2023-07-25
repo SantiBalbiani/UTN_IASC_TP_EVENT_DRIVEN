@@ -17,11 +17,11 @@
 ```
 docker-compose up --build
 ```
-### 2° Crear uno o varios vuelos mock:
+#### 2° Crear uno o varios vuelos mock:
 ```
 localhost:3015/createflight
 ```
-### 3° Obtener el estado:
+#### 3° Obtener el estado:
 ```
 localhost:3015/getState
 ```
