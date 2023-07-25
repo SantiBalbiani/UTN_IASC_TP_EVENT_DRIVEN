@@ -6,10 +6,11 @@ import { Worker } from 'cluster';
 import { receiveMessage, createMessage, createFlightOffer } from './services/controller';
 import { removeDuplicates } from './services/helper';
 import { parse } from 'url';
-const numCPUs = os.cpus().length;
+//const numCPUs = os.cpus().length; 
+const numCPUs = 3;
 const workers: Worker[] = [];
 let workersPorts: { workerPID: number; port: number }[] = [];
-let previousPort = 3002;
+let previousPort = 3001;
 
 interface MessageWorker {
   type: string;
@@ -17,13 +18,10 @@ interface MessageWorker {
 }
 
 function getNextPortRR(port_from_server: string) {
-
-
   const workersOnlyPorts = workersPorts.map(value => value.port);
   //let index = workersOnlyPorts.indexOf(parseInt(process.env.PORT));
-
-  //Usar port_from_server hace que funcione solo corriendose en docker.
-  //Usar previousPort hace que funcione solo corriendose directo.
+  //-->Usar port_from_server hace que funcione solo corriendose en docker.
+  //-->Usar previousPort hace que funcione solo corriendose directo.
   //let index = workersOnlyPorts.indexOf(previousPort);
   let index = workersOnlyPorts.indexOf(parseInt(port_from_server));
   console.log(parseInt(port_from_server));
@@ -72,8 +70,11 @@ if (cluster.isPrimary) {
   }
 
   cluster.on('exit', (worker, code, signal) => {
-    console.log(`worker ${worker.process.pid} died`);
-    cluster.fork({ PORT: 3000 + workers.length }); // Reemplazar el worker muerto con uno nuevo reutilizando el puerto.
+    console.log(`worker ${worker.process.pid} died with code ${code} and signal ${signal}`);
+    //cluster.fork({ PORT: 3000 + workers.length }); // Reemplazar el worker muerto con uno nuevo reutilizando el puerto.
+    let workersDataSerialized = workersData.map(val => JSON.parse(val));
+    let falledWorker = workersDataSerialized.filter( val => val.workerPID == worker.process.pid);
+    cluster.fork({ PORT: falledWorker[0].port });
   });
 } else {
   workersPorts = [];
@@ -119,7 +120,7 @@ if (cluster.isPrimary) {
     console.log('hasta acá llegué');
     let flightMock = { when: "20230909", price: 43.5, airline: "Aerolineas", origin: "Buenos Aires", destination: "Miami", seats: 23 }
     createFlightOffer(flightMock);
-    res.send(`Flight Created by ${process.pid}`);
+    res.send(`Flight Created by ${process.pid} in port: ${process.env.PORT}`);
   });
 
   app.get('/createmessagequeue', (req, res) => {
@@ -129,9 +130,10 @@ if (cluster.isPrimary) {
   });
 
   app.get('/getstate', (req, res) => {
+
     if(theState)
     {
-      res.status(200).send(theState)
+      res.status(200).send(`<div> <div> ${theState} </div>   Flight Created by ${process.pid} </div>`)
     }else{
       res.send('No state yet');
     }

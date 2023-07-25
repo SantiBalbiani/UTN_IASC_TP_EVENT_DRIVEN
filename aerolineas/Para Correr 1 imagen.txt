@@ -17,3 +17,48 @@ docker run -p 3000-3015:3000-3015  --name testae3 aerolineastest
       depends_on:
         - rabbitmq
       restart: always
+
+
+        statebusrabbitmq:
+      build:
+        context: ./statebusrabbitmq
+        args:
+          - NODE_ENV=development
+      ports:
+        # AMQP protocol port
+        # - 5673:5673
+        # HTTP management UI
+        - 10673:10673
+      environment:
+        - SERVICE=statebusrabbitmq
+      env_file:
+        - ./statebusrabbitmq/.env
+      restart: always
+      depends_on:
+        - rabbitmq
+
+        vuelos:
+    build:
+      context: ./vuelos
+      args:
+        - NODE_ENV=development
+    ports:
+      - 6000:6000
+    environment:
+      - SERVICE=vuelos
+    env_file:
+      - ./vuelos/.env
+    depends_on:
+      - rabbitmq
+    restart: always
+
+  proxy:
+    restart: 'always'
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile  
+    ports:
+      - 80:80
+    depends_on:
+      - vuelos
+      - aerolineas
