@@ -8,16 +8,21 @@
 - Ernesto Bossi
 - Sofía Audisio
 
-### Link a diagramas
-- URL a Diagrams.io / Excallibur Image
+### Diagrama
+![URL a Diagrams.io / Excallibur Image](https://github.com/SantiBalbiani/UTN_IASC_TP_EVENT_DRIVEN/blob/master/images/container1.PNG?raw=true)
 
 ### Cómo Ejecutar el proyecto
 
 #### 1° Docker-compose
 ```
-docker-compose up --scale vuelos=1 --build
+docker-compose up --build
 ```
-### 2° Ingresar a la URL:
+### 2° Crear uno o varios vuelos mock:
 ```
-XXXXXXXXX
+localhost:3015/createflight
 ```
+### 3° Obtener el estado:
+```
+localhost:3015/getState
+```
+
