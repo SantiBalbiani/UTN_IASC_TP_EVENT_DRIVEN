@@ -13,9 +13,15 @@
 
 ### Cómo Ejecutar el proyecto
 
-#### 1° Docker-compose
+#### 1° Levantar aplicación
 ```
 docker-compose up --build
+```
+### 2° Dentro de la carpeta ./aerolineas:
+```
+npm install
+npm run build
+npm run start
 ```
 ### 2° Crear uno o varios vuelos mock:
 ```
