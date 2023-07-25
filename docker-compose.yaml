@@ -34,21 +34,6 @@ services:
       # HTTP management UI
       - 15672:15672
 
-  aerolineas:
-      build:
-        context: ./aerolineas
-        args:
-          - NODE_ENV=development
-      ports:
-        - 3015:3015
-      environment:
-        - SERVICE=aerolineas
-      env_file:
-        - ./aerolineas/.env
-      depends_on:
-        - rabbitmq
-      restart: always
-
   vuelos:
     build:
       context: ./vuelos
