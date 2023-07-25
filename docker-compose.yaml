@@ -11,7 +11,7 @@ services:
         # AMQP protocol port
         # - 5673:5673
         # HTTP management UI
-        - 15673:15673
+        - 10673:10673
       environment:
         - SERVICE=statebusrabbitmq
       env_file:
@@ -34,21 +34,7 @@ services:
       # HTTP management UI
       - 15672:15672
 
-  aerolineas:
-      build:
-        context: ./aerolineas
-        args:
-          - NODE_ENV=development
-      ports:
-        - 3015:3015
-      environment:
-      #TODO
-        - SERVICE=aerolineas
-      env_file:
-        - ./aerolineas/.env
-      depends_on:
-        - rabbitmq
-      restart: always
+
 
   vuelos:
     build:
@@ -74,4 +60,4 @@ services:
       - 80:80
     depends_on:
       - vuelos
-      - aerolineas
+#      - aerolineas

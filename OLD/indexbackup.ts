@@ -3,9 +3,8 @@ import express from 'express';
 import httpProxy from 'http-proxy';
 import cluster from 'cluster';
 import { Worker } from 'cluster';
-import { receiveMessage, createMessage, createFlightOffer } from './services/controller';
-import { removeDuplicates } from './services/helper';
-import { parse } from 'url';
+import { createMessage, createFlightOffer } from './services/controller';
+
 const numCPUs = os.cpus().length;
 const workers: Worker[] = [];
 let workersPorts: { workerPID: number; port: number }[] = [];
@@ -24,8 +23,8 @@ function getNextPortRR(port_from_server: string) {
 
   //Usar port_from_server hace que funcione solo corriendose en docker.
   //Usar previousPort hace que funcione solo corriendose directo.
-  //let index = workersOnlyPorts.indexOf(previousPort);
-  let index = workersOnlyPorts.indexOf(parseInt(port_from_server));
+  let index = workersOnlyPorts.indexOf(previousPort);
+  //let index = workersOnlyPorts.indexOf(parseInt(port_from_server));
   console.log(parseInt(port_from_server));
   console.log(workersOnlyPorts);
   console.log('indice determinado:');
@@ -73,32 +72,17 @@ if (cluster.isPrimary) {
 
   cluster.on('exit', (worker, code, signal) => {
     console.log(`worker ${worker.process.pid} died`);
-    cluster.fork({ PORT: 3000 + workers.length }); // Reemplazar el worker muerto con uno nuevo reutilizando el puerto.
+    cluster.fork({ PORT: 3000 + workers.length }); // Reemplazar el worker muerto con uno nuevo en el siguiente puerto disponible
   });
 } else {
   workersPorts = [];
-
-  let theState: any[] = [];
-  const queueName = `worker_queue_${process.pid}`;
-  const exchangeName = 'broadcast_exchange';
-  async function receiveAndSetState(exchange: string, queue: string) {
-    const message = await receiveMessage(exchange, queue);
-    if (typeof message === 'string') {
-      theState.push(JSON.parse(message));
-    } else {
-      console.error('Received message is not a string:', message);
-    }
-  }
-  
-  receiveAndSetState(exchangeName, queueName);
-
   process.on('message', (message: MessageWorker) => {
     switch (message.type) {
       case 'WorkersPorts':
         workersPorts = message.data.map(val => JSON.parse(val));
         console.log(`Master received result from Worker ${cluster.worker?.process.pid}: ${message.type}`);
         break;
-      // Acá manejo la recepción de mensajes
+      // Agregar más casos según los tipos de mensajes que necesite manejar
     }
     // Cuando el worker recibe un mensaje, mostramos el valor recibido
     // console.log(`Worker ${cluster.worker?.process.pid} received message: ${message}`);
@@ -111,6 +95,7 @@ if (cluster.isPrimary) {
   });
 
   app.get('/tryme', (req, res) => {
+    //delay(200);
     res.writeHead(200);
     res.end(`Try me! Hello world!\n I am the pid ${process.pid} listening at port ${process.env.PORT}`);
   });
@@ -118,43 +103,50 @@ if (cluster.isPrimary) {
   app.get('/createflight', (req, res) => {
     console.log('hasta acá llegué');
     let flightMock = { when: "20230909", price: 43.5, airline: "Aerolineas", origin: "Buenos Aires", destination: "Miami", seats: 23 }
-    createFlightOffer(flightMock);
+    //await createFlightOffer(flightMock);
     res.send(`Flight Created by ${process.pid}`);
   });
 
   app.get('/createmessagequeue', (req, res) => {
     console.log('a punto de llamar a createMessage');
-    createMessage()
+    //createMessage()
     res.send('Queue message created');
   });
 
-  app.get('/getstate', (req, res) => {
-    if(theState)
-    {
-      res.status(200).send(theState)
-    }else{
-      res.send('No state yet');
-    }
-  });
-
-  const proxy = httpProxy.createProxyServer({});
   const serverPort: string = process.env.PORT || '3000';
+
 
   const server = app.listen(process.env.PORT, () => {
     console.log(`Worker ${process.pid} started`);
-  });
+
+    const proxy = httpProxy.createProxyServer({});
+
+
     const app2 = express();
-    app2.all('*', (req, res) => {
+      
+   
+    
+    app2.get('/createflight', (req, res) => {
       const nextPort = getNextPortRR(serverPort);
       previousPort = nextPort;
-      const originalPath = removeDuplicates(req.path); // Obtener la ruta sin duplicados
-      console.log(`1er proxy http://localhost:${nextPort}${originalPath}`);
-      proxy.web(req, res, { target: `http://localhost:${nextPort}${originalPath}`, ignorePath: true }); 
+      proxy.web(req, res, { target: `http://localhost:${nextPort}/createflight` });
     });
-    const proxyPort = 3015;
+
+    app2.get('/createmessagequeue', (req, res) => {
+      const nextPort = getNextPortRR(serverPort);
+      previousPort = nextPort;
+      proxy.web(req, res, { target: `http://localhost:${nextPort}/createmessagequeue` });
+    });
+
+    app2.get('/', (req, res) => {
+      const nextPort = getNextPortRR(serverPort);
+      previousPort = nextPort;
+      proxy.web(req, res, { target: `http://localhost:${nextPort}/tryme` });
+    });
+
     app2.listen(3015, () => {
-      console.log(`El proxy Server está escuchando en el puerto ${proxyPort}`);
+      console.log('La aplicación 2 está escuchando en el puerto 3015');
     });
  
- 
+  });
 }
