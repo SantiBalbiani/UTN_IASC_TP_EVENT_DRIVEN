@@ -3,9 +3,10 @@ import express from 'express';
 import httpProxy from 'http-proxy';
 import cluster from 'cluster';
 import { Worker } from 'cluster';
-import { receiveMessage, createMessage, createFlightOffer } from './services/controller';
+import { receiveMessage1, createMessage, createFlightOffer, connectToQueue, connectAndGestChannel } from './services/controller';
 import { removeDuplicates } from './services/helper';
 import { parse } from 'url';
+import client, { Channel, Connection } from 'amqplib';
 //const numCPUs = os.cpus().length; 
 const numCPUs = 3;
 const workers: Worker[] = [];
@@ -36,22 +37,6 @@ function getNextPortRR(port_from_server: string) {
   return nextPort;
 }
 
-function isWorkerAvailable(pid: number): boolean {
-  try {
-    // Intentamos enviar una señal al proceso del worker con el PID dado
-    // Si el proceso está vivo, esto no generará una excepción y devolverá true
-    process.kill(pid, 0);
-    return true;
-  } catch (error) {
-    // Si el proceso no está vivo, la excepción se captura y devolvemos false
-    return false;
-  }
-}
-
- async function delay(time: number) {
-  return new Promise(resolve => setTimeout(resolve, time));
-} 
-
 if (cluster.isPrimary) {
   console.log(`Primary ${process.pid} is running`);
   const workersData: string[] = [];
@@ -77,19 +62,53 @@ if (cluster.isPrimary) {
     cluster.fork({ PORT: falledWorker[0].port });
   });
 } else {
+  //================Global Variables for Worker=======================
   workersPorts = [];
-
   let theState: any[] = [];
+  let channel: Channel | null = null;
+  //==================================================================
+
+  process.on('exit', () => {
+    if (channel) {
+      channel.close();
+    }
+  });
+
+  const connectPath = `${process.env.MQ_PROTO}://${process.env.MQ_USER}:${process.env.MQ_PASS}@rabbitmq:${process.env.MQ_PORT}`;
+  async function receiveAndSetState(exchange: string, queue: string) {
+    
+    channel = await connectAndGestChannel(channel);
+    await channel.assertExchange(exchange, 'fanout', { durable: false });
+    const { queue: queueName } = await channel.assertQueue(queue, { exclusive: true });
+    await channel.bindQueue(queue, exchange, '');
+
+    console.log(`Worker ${process.pid} waiting for state updates in queue "${queueName}"...`);
+
+    // Suscribirse a la cola y recibir mensajes
+    channel.consume(queueName, (message: any) => {
+      if (message) {
+        const messageValue = message.content.toString();
+        console.log(`Worker ${process.pid} received state update: ${messageValue}!!!`);
+        theState.push(...JSON.parse(messageValue));
+      }
+    }, { noAck: true });
+  }
+
+
+  
   const queueName = `worker_queue_${process.pid}`;
   const exchangeName = 'broadcast_exchange';
-  async function receiveAndSetState(exchange: string, queue: string) {
+ 
+/*   async function receiveAndSetState(exchange: string, queue: string) {
     const message = await receiveMessage(exchange, queue);
     if (typeof message === 'string') {
       theState.push(JSON.parse(message));
+      console.log('print state as soon as received');
+      console.log(theState);
     } else {
       console.error('Received message is not a string:', message);
     }
-  }
+  } */
   
   receiveAndSetState(exchangeName, queueName);
 
@@ -108,7 +127,7 @@ if (cluster.isPrimary) {
   const app = express();
   app.get('/', (req, res) => {
     res.writeHead(200);
-    res.end(`Hello world!\n I am the pid ${process.pid}`);
+    res.end(`Hello world!\n This is the root! I am the pid ${process.pid}`);
   });
 
   app.get('/tryme', (req, res) => {
@@ -119,8 +138,20 @@ if (cluster.isPrimary) {
   app.get('/createflight', (req, res) => {
     console.log('hasta acá llegué');
     let flightMock = { when: "20230909", price: 43.5, airline: "Aerolineas", origin: "Buenos Aires", destination: "Miami", seats: 23 }
-    createFlightOffer(flightMock);
+    createFlightOffer(flightMock, channel);
     res.send(`Flight Created by ${process.pid} in port: ${process.env.PORT}`);
+  });
+
+  app.get('/traerestado', (req, res) => {
+
+    if(theState)
+    {
+      console.log('the state');
+      console.log(theState);
+      res.status(200).send(`<div> <div> ${theState} </div> </br>  Flight Created by ${process.pid} </div>`)
+    }else{
+      res.send('No state yet');
+    }
   });
 
   app.get('/createmessagequeue', (req, res) => {
@@ -129,15 +160,7 @@ if (cluster.isPrimary) {
     res.send('Queue message created');
   });
 
-  app.get('/getstate', (req, res) => {
-
-    if(theState)
-    {
-      res.status(200).send(`<div> <div> ${theState} </div>   Flight Created by ${process.pid} </div>`)
-    }else{
-      res.send('No state yet');
-    }
-  });
+ 
 
   const proxy = httpProxy.createProxyServer({});
   const serverPort: string = process.env.PORT || '3000';
@@ -157,6 +180,4 @@ if (cluster.isPrimary) {
     app2.listen(3015, () => {
       console.log(`El proxy Server está escuchando en el puerto ${proxyPort}`);
     });
- 
- 
 }

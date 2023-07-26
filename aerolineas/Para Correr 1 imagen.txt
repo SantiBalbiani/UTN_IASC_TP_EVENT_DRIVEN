@@ -1,3 +1,7 @@
+
+/Documents/IASC/TP_IASC_EVENT_DRIVEN/iasc-tp/docker-compose up --build
+
+
 Para correr la imagen
 
 docker run -p 3000-3015:3000-3015  --name testae3 aerolineastest
