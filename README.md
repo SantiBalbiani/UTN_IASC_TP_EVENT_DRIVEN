@@ -25,4 +25,9 @@ localhost:3015/createflight
 ```
 localhost:3015/getState
 ```
+#### 4° Kill a worker
+```
+ps aux | grep node
+kill -SIGTERM <PID_DEL_WORKER>
+```
 
