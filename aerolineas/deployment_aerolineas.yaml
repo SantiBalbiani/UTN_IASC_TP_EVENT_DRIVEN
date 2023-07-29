@@ -14,14 +14,14 @@ spec:
     spec:
       containers:
         - name: aerolineas
-          image: c4849ffa130d9afd239c7e419267ec268d1b1ec94af6c3e01c227e098fb28833
+          image: node:20-alpine  # Agrega un espacio y coloca la etiqueta de la imagen (por ejemplo, "node:20-alpine")
           ports:
             - containerPort: 3015
           env:
             - name: SERVICE
               value: aerolineas
           # Agrega aquí los volúmenes, configuración y recursos necesarios para tu aplicación
----
+
 apiVersion: v1
 kind: Service
 metadata:
@@ -31,5 +31,5 @@ spec:
     app: aerolineas
   ports:
     - protocol: TCP
-      port: 80
-      targetPort: 3015
+      port: 3015
+      targetPort: 3015  # Usa la misma etiqueta de puerto que en "port"

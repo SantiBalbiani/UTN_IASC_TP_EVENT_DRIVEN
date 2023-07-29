@@ -4,10 +4,7 @@ events {
 
 http {
   upstream aerolineas_app {
-    server iasc-tp-aerolineas-1:3015;
-    server iasc-tp-aerolineas-2:3016;
-    server iasc-tp-aerolineas-3:3017;
-    server iasc-tp-aerolineas-4:3018
+    server aerolineas:3015;
   }
 
   server {

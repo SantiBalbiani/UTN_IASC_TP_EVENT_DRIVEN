@@ -6,15 +6,15 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app: proxy
+      app: proxy  # Coincide con la etiqueta utilizada aquí
   template:
     metadata:
       labels:
-        app: proxy
+        app: proxy  # Coincide con la etiqueta utilizada aquí
     spec:
       containers:
         - name: proxy
           image: nginx:latest
           ports:
             - containerPort: 80
-          imagePullPolicy: IfNotPresent
+          # Aquí puedes agregar la configuración adicional de NGINX si es necesario
