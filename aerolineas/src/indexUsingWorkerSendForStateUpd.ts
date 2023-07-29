@@ -3,7 +3,7 @@ import express from 'express';
 import httpProxy from 'http-proxy';
 import cluster from 'cluster';
 import { Worker } from 'cluster';
-import { receiveMessage1, createMessage, createFlightOffer, connectToQueue, connectAndGestChannel, sendMessageToExchange } from './services/controller';
+import { receiveMessage1, createMessage, createFlightOffer, connectToQueue, connectAndGestChannel } from './services/controller';
 import { removeDuplicates, deserializeMessage, findWorkerByPID,  delay, handleInitialPortsLoad, handleInitialWorkersLoad, handleInitialState } from './services/helper';
 import { parse } from 'url';
 import client, { Channel, Connection } from 'amqplib';
@@ -154,70 +154,20 @@ if (cluster.isPrimary) {
   workersPorts = [];
   let theState: any[] = [];
   let channel: Channel | null = null;
-  let ch_reqStateSignal: Channel | null = null;
-  let ch_resStateSignal: Channel | null = null;
   const proxy = httpProxy.createProxyServer({});
   const serverPort: string = process.env.PORT || '3000';
   const connectPath = `${process.env.MQ_PROTO}://${process.env.MQ_USER}:${process.env.MQ_PASS}@rabbitmq:${process.env.MQ_PORT}`;
-  const queueStateUpd = `state_upd_queue_${process.pid}`;
-  const queueInitStateReq = `state_init_req_queue_${process.pid}`;
-  const queueInitStateRes = `state_init_res_queue_${process.pid}`;
-  const exchangeStateUpd = 'vuelos_state_upd_broadcast';
-  const exchangeRequestStateSignal = 'req_state_signal';
-  const exchangeResponseState = 'res_state';
+  const queueName = `vuelos_worker_queue_${process.pid}`;
+  const exchangeName = 'vuelos_state_upd_broadcast';
   //==================================================================
 
   process.on('exit', () => {
     if (channel) {
       console.log('cierro el canal del worker que murió');
       channel.close();
-      ch_reqStateSignal?.close();
-      ch_resStateSignal?.close();
     }
   });
 
-  async function receiveInitialStateResponse(exchange: string, queue: string){
-    ch_resStateSignal = await connectAndGestChannel(ch_reqStateSignal);
-    await ch_resStateSignal.assertExchange(exchange, 'fanout', { durable: false });
-    const { queue: queueName } = await ch_resStateSignal.assertQueue(queue, { exclusive: true });
-    await ch_resStateSignal.bindQueue(queue, exchange, '');
-
-    console.log(`Worker ${process.pid} waiting for state updates in queue "${queueName}"...`);
-
-    // Me bindeo a la cola y recibo mensajes
-    ch_resStateSignal.consume(queueName, (message: any) => {
-      if (message) {
-        const messageValue = message.content.toString();
-        const messageReady = deserializeMessage(messageValue);
-       if( messageValue && !theState){
-          theState = messageReady;
-        }
-
-      }
-    }, { noAck: true });
-  }
-
-  async function receiveInitialStateRequestSignal(exchange: string, queue: string){
-    ch_reqStateSignal = await connectAndGestChannel(ch_reqStateSignal);
-    await ch_reqStateSignal.assertExchange(exchange, 'fanout', { durable: false });
-    const { queue: queueName } = await ch_reqStateSignal.assertQueue(queue, { exclusive: true });
-    await ch_reqStateSignal.bindQueue(queue, exchange, '');
-
-    console.log(`Worker ${process.pid} waiting for state updates in queue "${queueName}"...`);
-
-    // Me bindeo a la cola y recibo mensajes
-    ch_reqStateSignal.consume(queueName, (message: any) => {
-      if (message) {
-        const messageValue = message.content.toString();
-        if(messageValue === 'StateRequest'){
-          if(theState && theState.length > 0){
-           sendMessageToExchange(exchangeResponseState,JSON.stringify(theState), ch_resStateSignal);
-        }
-        }
-
-      }
-    }, { noAck: true });
-  }
 
   async function receiveAndSetState(exchange: string, queue: string) {
 
@@ -284,13 +234,6 @@ if (cluster.isPrimary) {
   if (process.env.INIT) {
 
     async function init() {
-
-      await sendMessageToExchange(exchangeRequestStateSignal,"StateRequest", ch_reqStateSignal);
-      await receiveInitialStateResponse(exchangeResponseState,queueInitStateRes);
-      if(theState && theState.length > 0){
-        process.env.INIT = undefined;
-      }
-
       try {
         workersPorts = await handleInitialPortsLoad(process);
         console.log('INIT, imprimo los Workers');
@@ -302,7 +245,7 @@ if (cluster.isPrimary) {
         if (neighbourData) {
           console.log(`PID del que le pediremos el estado: ${neighbourData.workerPID}`);
           const message = { type: 'StateRequest', data: process.pid };
-         
+          //const neighbourWorker = findWorkerByPID(neighbourData.workerPID);
           
             console.log(`Soy un nuevo Worker, tengo el PID: ${process.pid} y le voy a pedir el estado a ${neighbourData.workerPID}`);
             sendMessageToWorker(neighbourData.workerPID, JSON.stringify(message));          
@@ -313,16 +256,11 @@ if (cluster.isPrimary) {
         console.error('Error mientras se maneja la carga inicial de puertos:', error);
       }
     }
-
-
-
-
-
     init();
   }
 
-  receiveAndSetState(exchangeStateUpd, queueStateUpd);
-  receiveInitialStateRequestSignal(exchangeRequestStateSignal, queueInitStateReq);
+  receiveAndSetState(exchangeName, queueName);
+
 
 /*   function receiveMessageFromOtherWorker(message: any): Record<number, Worker> | null {
     if (Array.isArray(message) && message.length > 0) {
@@ -410,7 +348,7 @@ function convertMessageDataToWorkersMap(messageData: string[]): Record<number, W
        theState = message.data;  
         console.log("Mi request de estado inicial está satisfecha. El estado es:");
         console.log(message.data);
-        
+        process.env.INIT = undefined;
         break;
       case 'WorkersUpdate':
         if(message.data){

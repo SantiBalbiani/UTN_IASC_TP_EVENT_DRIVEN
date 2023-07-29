@@ -1,3 +1,3 @@
 #!/bin/sh
-# Espero 30 segundos para que RabbitMQ se inicie.
-sleep 30
+# Espero 10 segundos para que RabbitMQ se inicie.
+sleep 10

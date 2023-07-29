@@ -16,8 +16,11 @@ interface s_flight {
 //usar esta cte si se ejecuta desde docker
 const connectPath = `${process.env.MQ_PROTO}://${process.env.MQ_USER}:${process.env.MQ_PASS}@rabbitmq:${process.env.MQ_PORT}`;
 const serverHostname = 'aerolineas';
+const exchangeName = 'vuelos_state_upd_broadcast';
 
-async function sendMessageToExchange(exchange: string, message: string, channel: Channel | null) {
+
+
+export async function sendMessageToExchange(exchange: string, message: string, channel: Channel | null) {
   //Usar ruta directa si se ejecuta directamente
   /* const connection = await amqp.connect('amqp://utn:iasc@localhost:5672') */
 
@@ -27,7 +30,7 @@ async function sendMessageToExchange(exchange: string, message: string, channel:
   // Esto funciona ejecutando desde Docker (A veces se ejecuta esto antes que la cola esté lista)
 /*    const connection = await amqp.connect(connectPath, {hostname:serverHostname});  
    const channel = await connection.createChannel();  */
-  console.log(`preparing to send`, message);
+  
   channel = await connectAndGestChannel(channel);
 
   //const channel = await connectToQueueWithRetry();
@@ -123,7 +126,6 @@ export async function connectToQueue(): Promise<Channel> {
 }
 
 export async function createFlightOffer(flight: s_flight, channel: Channel | null) {
-  const exchangeName = 'broadcast_exchange';
 
   await sendMessageToExchange(exchangeName, JSON.stringify(flight), channel);
 
