@@ -9,14 +9,12 @@ async function setupExchangeStateQueue() {
   const connection: Connection = await ColaMensajes.connect(connectPath);
   const channel: Channel = await connection.createChannel();
 
-  const exchangeName = 'state_broadcast';
+  const exchangeName = 'broadcast_exchange';
   const exchangeType = 'fanout';
 
   await channel.assertExchange(exchangeName, exchangeType, { durable: false });
 
   console.log(`Exchange "${exchangeName}" successfully created and ready.`);
 }
-
-export {setupExchangeStateQueue};
 
 setupExchangeStateQueue().catch(console.error);

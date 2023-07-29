@@ -15,21 +15,19 @@ services:
       # HTTP management UI
       - 15672:15672
 
+
   aerolineas:
-      build:
-        context: ./aerolineas
-        args:
-          - NODE_ENV=development
-      ports:
-        - "3015"
-      environment:
-        - SERVICE=aerolineas
-      env_file:
-        - ./aerolineas/.env
-      depends_on:
-        - rabbitmq
-      restart: always
-      #command: sh -c "sleep 3 && npm start"
+    build:
+      context: ./aerolineas
+      args:
+        - NODE_ENV=development
+    environment:
+      - SERVICE=aerolineas
+    env_file:
+      - ./aerolineas/.env
+    restart: always
+    #command: sh -c "sleep 3 && npm start"
+
 
   proxy:
     restart: 'always'
@@ -37,6 +35,10 @@ services:
       context: ./nginx
       dockerfile: Dockerfile  
     ports:
-      - 80:80
+      - "80:80"
     depends_on:
       - aerolineas
+    #command: sh -c "sleep 10 && npm start"
+
+
+
